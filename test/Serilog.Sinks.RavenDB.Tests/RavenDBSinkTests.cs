@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using NUnit.Framework;
 using Raven.Client.Embedded;
 using Serilog.Events;
@@ -48,5 +49,239 @@ namespace Serilog.Sinks.RavenDB.Tests
             }
         }
 
+        [Test]
+        public void WnenAnEventIsWrittenWithExpirationItHasProperMetadata()
+        {
+            using (var documentStore = new EmbeddableDocumentStore { RunInMemory = true }.Initialize())
+            {
+                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var expiration = TimeSpan.FromDays(1);
+                var errorExpiration = TimeSpan.FromMinutes(15);
+                var targetExpiration = DateTime.UtcNow.Add(expiration);
+                var exception = new ArgumentException("Mládek");
+                const LogEventLevel level = LogEventLevel.Information;
+                const string messageTemplate = "{Song}++";
+                var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
+
+                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, expiration:expiration, errorExpiration:errorExpiration))
+                {
+                    var template = new MessageTemplateParser().Parse(messageTemplate);
+                    var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
+                    ravenSink.Emit(logEvent);
+                }
+
+                using (var session = documentStore.OpenSession())
+                { 
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
+                    var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
+                    Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
+                }
+            }
+        }
+
+        [Test]
+        public void WnenAnErrorEventIsWrittenWithExpirationItHasProperMetadata()
+        {
+            using (var documentStore = new EmbeddableDocumentStore { RunInMemory = true }.Initialize())
+            {
+                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var errorExpiration = TimeSpan.FromDays(1);
+                var expiration = TimeSpan.FromMinutes(15);
+                var targetExpiration = DateTime.UtcNow.Add(errorExpiration);
+                var exception = new ArgumentException("Mládek");
+                const LogEventLevel level = LogEventLevel.Error;
+                const string messageTemplate = "{Song}++";
+                var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
+
+                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, expiration: expiration, errorExpiration:errorExpiration))
+                {
+                    var template = new MessageTemplateParser().Parse(messageTemplate);
+                    var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
+                    ravenSink.Emit(logEvent);
+                }
+
+                using (var session = documentStore.OpenSession())
+                {
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
+                    var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
+                    Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
+                }
+            }
+        }
+
+        [Test]
+        public void WhenAFatalEventIsWrittenWithExpirationItHasProperMetadata()
+        {
+            using (var documentStore = new EmbeddableDocumentStore { RunInMemory = true }.Initialize())
+            {
+                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var errorExpiration = TimeSpan.FromDays(1);
+                var expiration = TimeSpan.FromMinutes(15);
+                var targetExpiration = DateTime.UtcNow.Add(errorExpiration);
+                var exception = new ArgumentException("Mládek");
+                const LogEventLevel level = LogEventLevel.Fatal;
+                const string messageTemplate = "{Song}++";
+                var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
+
+                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, expiration: expiration, errorExpiration: errorExpiration))
+                {
+                    var template = new MessageTemplateParser().Parse(messageTemplate);
+                    var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
+                    ravenSink.Emit(logEvent);
+                }
+
+                using (var session = documentStore.OpenSession())
+                {
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
+                    var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
+                    Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
+                }
+            }
+        }
+
+        [Test]
+        public void WhenNoErrorExpirationSetBuExpirationSetUseExpirationForErrors()
+        {
+            using (var documentStore = new EmbeddableDocumentStore { RunInMemory = true }.Initialize())
+            {
+                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var expiration = TimeSpan.FromMinutes(15);
+                var targetExpiration = DateTime.UtcNow.Add(expiration);
+                var exception = new ArgumentException("Mládek");
+                const LogEventLevel level = LogEventLevel.Fatal;
+                const string messageTemplate = "{Song}++";
+                var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
+
+                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, expiration: expiration))
+                {
+                    var template = new MessageTemplateParser().Parse(messageTemplate);
+                    var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
+                    ravenSink.Emit(logEvent);
+                }
+
+                using (var session = documentStore.OpenSession())
+                {
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
+                    var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
+                    Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
+                }
+            }
+        }
+
+        [Test]
+        public void WhenNoExpirationSetBuErrorExpirationSetUseErrorExpirationForMessages()
+        {
+            using (var documentStore = new EmbeddableDocumentStore { RunInMemory = true }.Initialize())
+            {
+                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var errorExpiration = TimeSpan.FromMinutes(15);
+                var targetExpiration = DateTime.UtcNow.Add(errorExpiration);
+                var exception = new ArgumentException("Mládek");
+                const LogEventLevel level = LogEventLevel.Information;
+                const string messageTemplate = "{Song}++";
+                var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
+
+                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, errorExpiration: errorExpiration))
+                {
+                    var template = new MessageTemplateParser().Parse(messageTemplate);
+                    var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
+                    ravenSink.Emit(logEvent);
+                }
+
+                using (var session = documentStore.OpenSession())
+                {
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
+                    var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
+                    Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
+                }
+            }
+        }
+
+        [Test]
+        public void WhenNoExpirationIsProvidedMessagesDontExpire()
+        {
+            using (var documentStore = new EmbeddableDocumentStore { RunInMemory = true }.Initialize())
+            {
+                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var exception = new ArgumentException("Mládek");
+                const LogEventLevel level = LogEventLevel.Error;
+                const string messageTemplate = "{Song}++";
+                var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
+
+                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null))
+                {
+                    var template = new MessageTemplateParser().Parse(messageTemplate);
+                    var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
+                    ravenSink.Emit(logEvent);
+                }
+
+                using (var session = documentStore.OpenSession())
+                {
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    Assert.IsFalse(session.Advanced.GetMetadataFor(logEvent).ContainsKey(RavenDBSink.RavenExpirationDate), "No expiration set");
+                }
+            }
+        }
+
+        [Test]
+        public void WhenExpirationSetToInfiniteMessagesDontExpire()
+        {
+            using (var documentStore = new EmbeddableDocumentStore { RunInMemory = true }.Initialize())
+            {
+                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var expiration = Timeout.InfiniteTimeSpan;
+                var targetExpiration = DateTime.UtcNow.Add(expiration);
+                var exception = new ArgumentException("Mládek");
+                const LogEventLevel level = LogEventLevel.Information;
+                const string messageTemplate = "{Song}++";
+                var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
+
+                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, expiration:expiration))
+                {
+                    var template = new MessageTemplateParser().Parse(messageTemplate);
+                    var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
+                    ravenSink.Emit(logEvent);
+                }
+
+                using (var session = documentStore.OpenSession())
+                {
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    Assert.IsFalse(session.Advanced.GetMetadataFor(logEvent).ContainsKey(RavenDBSink.RavenExpirationDate), "No expiration set");
+                }
+            }
+        }
+
+        [Test]
+        public void WhenErrorExpirationSetToInfiniteErrorsDontExpire()
+        {
+            using (var documentStore = new EmbeddableDocumentStore { RunInMemory = true }.Initialize())
+            {
+                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var errorExpiration = Timeout.InfiniteTimeSpan;
+                var targetExpiration = DateTime.UtcNow.Add(errorExpiration);
+                var exception = new ArgumentException("Mládek");
+                const LogEventLevel level = LogEventLevel.Information;
+                const string messageTemplate = "{Song}++";
+                var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
+
+                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, errorExpiration: errorExpiration))
+                {
+                    var template = new MessageTemplateParser().Parse(messageTemplate);
+                    var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
+                    ravenSink.Emit(logEvent);
+                }
+
+                using (var session = documentStore.OpenSession())
+                {
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    Assert.IsFalse(session.Advanced.GetMetadataFor(logEvent).ContainsKey(RavenDBSink.RavenExpirationDate), "No expiration set");
+                }
+            }
+        }
     }
 }

@@ -14,10 +14,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Raven.Client;
 using Serilog.Sinks.PeriodicBatching;
 using LogEvent = Serilog.Sinks.RavenDB.Data.LogEvent;
+using Raven.Json.Linq;
+using Serilog.Events;
 
 namespace Serilog.Sinks.RavenDB
 {
@@ -28,12 +31,20 @@ namespace Serilog.Sinks.RavenDB
     {   
         readonly IFormatProvider _formatProvider;
         readonly IDocumentStore _documentStore;
+        readonly string _defaultDatabase;
+        readonly TimeSpan? _expiration;
+        private readonly TimeSpan? _errorExpiration;
 
         /// <summary>
         /// A reasonable default for the number of events posted in
         /// each batch.
         /// </summary>
         public const int DefaultBatchPostingLimit = 50;
+
+        /// <summary>
+        /// Constant for the name of the meta data field used for RavenDB expiration bundle
+        /// </summary>
+        public const string RavenExpirationDate = "Raven-Expiration-Date";
 
         /// <summary>
         /// A reasonable default time to wait between checking for event batches.
@@ -47,12 +58,19 @@ namespace Serilog.Sinks.RavenDB
         /// <param name="batchPostingLimit">The maximum number of events to post in a single batch.</param>
         /// <param name="period">The time to wait between checking for event batches.</param>
         /// <param name="formatProvider">Supplies culture-specific formatting information, or null.</param>
-        public RavenDBSink(IDocumentStore documentStore, int batchPostingLimit, TimeSpan period, IFormatProvider formatProvider)
+        /// <param name="defaultDatabase">Optional name of default database</param>
+        /// <param name="expiration">Optional time before a logged message will be expired assuming the expiration bundle is installed. <see cref="System.Threading.Timeout.InfiniteTimeSpan">Timeout.InfiniteTimeSpan</see> (-00:00:00.0010000) means no expiration. If this is not provided but errorExpiration is, errorExpiration will be used for non-errors too.</param>
+        /// <param name="errorExpiration">Optional time before a logged error message will be expired assuming the expiration bundle is installed. <see cref="System.Threading.Timeout.InfiniteTimeSpan">Timeout.InfiniteTimeSpan</see> (-00:00:00.0010000) means no expiration. If this is not provided but expiration is, expiration will be used for errors too.</param>
+        public RavenDBSink(IDocumentStore documentStore, int batchPostingLimit, TimeSpan period, IFormatProvider formatProvider, string defaultDatabase = null, TimeSpan? expiration = null, TimeSpan? errorExpiration = null)
             : base(batchPostingLimit, period)
         {
             if (documentStore == null) throw new ArgumentNullException("documentStore");
             _formatProvider = formatProvider;
             _documentStore = documentStore;
+            _defaultDatabase = defaultDatabase;
+            _expiration = expiration;
+            _errorExpiration = errorExpiration ?? expiration;
+            _expiration = expiration ?? errorExpiration;
         }
 
         /// <summary>
@@ -61,13 +79,35 @@ namespace Serilog.Sinks.RavenDB
         /// <param name="events">The events to emit.</param>
         /// <remarks>Override either <see cref="PeriodicBatchingSink.EmitBatch"/> or <see cref="PeriodicBatchingSink.EmitBatchAsync"/>,
         /// not both.</remarks>
-        protected override async Task EmitBatchAsync(IEnumerable<Events.LogEvent> events)
+        protected override async Task EmitBatchAsync(IEnumerable<global::Serilog.Events.LogEvent> events)
         {
-            using (var session = _documentStore.OpenAsyncSession())
+            using (var session = string.IsNullOrWhiteSpace(_defaultDatabase) ? _documentStore.OpenAsyncSession() : _documentStore.OpenAsyncSession(_defaultDatabase))
             {
                 foreach (var logEvent in events)
                 {
-                    await session.StoreAsync(new LogEvent(logEvent, logEvent.RenderMessage(_formatProvider)));
+                    var logEventDoc = new LogEvent(logEvent, logEvent.RenderMessage(_formatProvider));
+                    await session.StoreAsync(logEventDoc);
+                    if (_expiration != null)
+                    {
+                        if (logEvent.Level == LogEventLevel.Error || logEvent.Level == LogEventLevel.Fatal)
+                        {
+                            if (_errorExpiration != Timeout.InfiniteTimeSpan)
+                            {
+                                var metaData = await session.Advanced.GetMetadataForAsync(logEventDoc);
+                                metaData[RavenExpirationDate] =
+                                    new RavenJValue(DateTime.UtcNow.Add(_errorExpiration.Value));
+                            }
+                        }
+                        else
+                        {
+                            if (_expiration != Timeout.InfiniteTimeSpan)
+                            {
+                                var metaData = await session.Advanced.GetMetadataForAsync(logEventDoc);
+                                metaData[RavenExpirationDate] =
+                                    new RavenJValue(DateTime.UtcNow.Add(_expiration.Value));
+                            }
+                        }
+                    }
                 }
                 await session.SaveChangesAsync();
             }
