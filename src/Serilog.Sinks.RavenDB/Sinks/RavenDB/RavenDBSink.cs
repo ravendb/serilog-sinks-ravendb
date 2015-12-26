@@ -14,6 +14,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Raven.Client;
 using Serilog.Sinks.PeriodicBatching;
@@ -31,14 +32,19 @@ namespace Serilog.Sinks.RavenDB
         readonly IFormatProvider _formatProvider;
         readonly IDocumentStore _documentStore;
         readonly string _defaultDatabase;
-        readonly TimeSpan? _expirationTimeSpan;
-        private readonly TimeSpan? _errorExpirationTimeSpan;
+        readonly TimeSpan? _expiration;
+        private readonly TimeSpan? _errorExpiration;
 
         /// <summary>
         /// A reasonable default for the number of events posted in
         /// each batch.
         /// </summary>
         public const int DefaultBatchPostingLimit = 50;
+
+        /// <summary>
+        /// Constant for the name of the meta data field used for RavenDB expiration bundle
+        /// </summary>
+        public const string RavenExpirationDate = "Raven-Expiration-Date";
 
         /// <summary>
         /// A reasonable default time to wait between checking for event batches.
@@ -53,25 +59,18 @@ namespace Serilog.Sinks.RavenDB
         /// <param name="period">The time to wait between checking for event batches.</param>
         /// <param name="formatProvider">Supplies culture-specific formatting information, or null.</param>
         /// <param name="defaultDatabase">Optional name of default database</param>
-        /// <param name="expirationTimeSpan">Optional time before a logged message will be expired assuming the expiration bundle is installed. Zero (00:00:00) means no expiration. If this is not provided but errorExpirationTimeSpan is, errorExpirationTimeSpan will be used for non-errors too.</param>
-        /// <param name="errorExpirationTimeSpan">Optional time before a logged error message will be expired assuming the expiration bundle is installed.  Zero (00:00:00) means no expiration. If this is not provided but expirationTimeSpan is, expirationTimeSpan will be used for errors too.</param>
-        public RavenDBSink(IDocumentStore documentStore, int batchPostingLimit, TimeSpan period, IFormatProvider formatProvider, string defaultDatabase = null, TimeSpan? expirationTimeSpan = null, TimeSpan? errorExpirationTimeSpan = null)
+        /// <param name="expiration">Optional time before a logged message will be expired assuming the expiration bundle is installed. <see cref="System.Threading.Timeout.InfiniteTimeSpan">Timeout.InfiniteTimeSpan</see> (-00:00:00.0010000) means no expiration. If this is not provided but errorExpiration is, errorExpiration will be used for non-errors too.</param>
+        /// <param name="errorExpiration">Optional time before a logged error message will be expired assuming the expiration bundle is installed. <see cref="System.Threading.Timeout.InfiniteTimeSpan">Timeout.InfiniteTimeSpan</see> (-00:00:00.0010000) means no expiration. If this is not provided but expiration is, expiration will be used for errors too.</param>
+        public RavenDBSink(IDocumentStore documentStore, int batchPostingLimit, TimeSpan period, IFormatProvider formatProvider, string defaultDatabase = null, TimeSpan? expiration = null, TimeSpan? errorExpiration = null)
             : base(batchPostingLimit, period)
         {
             if (documentStore == null) throw new ArgumentNullException("documentStore");
             _formatProvider = formatProvider;
             _documentStore = documentStore;
             _defaultDatabase = defaultDatabase;
-            _expirationTimeSpan = expirationTimeSpan;
-            _errorExpirationTimeSpan = errorExpirationTimeSpan;
-            if (_errorExpirationTimeSpan == null)
-            {
-                _errorExpirationTimeSpan = _expirationTimeSpan;
-            }
-            if (_expirationTimeSpan == null)
-            {
-                _expirationTimeSpan = _errorExpirationTimeSpan;
-            }
+            _expiration = expiration;
+            _errorExpiration = errorExpiration ?? expiration;
+            _expiration = expiration ?? errorExpiration;
         }
 
         /// <summary>
@@ -88,24 +87,24 @@ namespace Serilog.Sinks.RavenDB
                 {
                     var logEventDoc = new LogEvent(logEvent, logEvent.RenderMessage(_formatProvider));
                     await session.StoreAsync(logEventDoc);
-                    if (_expirationTimeSpan != null || _errorExpirationTimeSpan != null)
+                    if (_expiration != null)
                     {
                         if (logEvent.Level == LogEventLevel.Error || logEvent.Level == LogEventLevel.Fatal)
                         {
-                            if (_errorExpirationTimeSpan > TimeSpan.Zero)
+                            if (_errorExpiration != Timeout.InfiniteTimeSpan)
                             {
-                                var metaData = session.Advanced.GetMetadataFor(logEventDoc);
-                                metaData["Raven-Expiration-Date"] =
-                                    new RavenJValue(DateTime.UtcNow.Add(_errorExpirationTimeSpan.Value));
+                                var metaData = await session.Advanced.GetMetadataForAsync(logEventDoc);
+                                metaData[RavenExpirationDate] =
+                                    new RavenJValue(DateTime.UtcNow.Add(_errorExpiration.Value));
                             }
                         }
                         else
                         {
-                            if (_expirationTimeSpan > TimeSpan.Zero)
+                            if (_expiration != Timeout.InfiniteTimeSpan)
                             {
-                                var metaData = session.Advanced.GetMetadataFor(logEventDoc);
-                                metaData["Raven-Expiration-Date"] =
-                                    new RavenJValue(DateTime.UtcNow.Add(_expirationTimeSpan.Value));
+                                var metaData = await session.Advanced.GetMetadataForAsync(logEventDoc);
+                                metaData[RavenExpirationDate] =
+                                    new RavenJValue(DateTime.UtcNow.Add(_expiration.Value));
                             }
                         }
                     }
