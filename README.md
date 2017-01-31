@@ -17,6 +17,24 @@ var log = new LoggerConfiguration()
 
 You'll need to create a database on the server for logs, and specify this as your default database in the connection string or `DocumentStore.DefaultDatabase`.  In the alternative, you can pass a default database when configuring the RavenDB sink. [More information](http://nblumhardt.com/2013/06/serilog-and-ravendb/).
 
+You can also configure the sink through your application config file using [Serilog.Settings.AppSettings](https://www.nuget.org/packages/Serilog.Settings.AppSettings)
+```csharp
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.AppSettings()
+    .CreateLogger();
+```
+```xml
+<connectionStrings>
+  <add name="Logs" connectionString="Url=http://[RAVEN_DB_SERVER]:8080/;DefaultDatabase=[OPTIONAL_DEFAULT_DATABASE]" />
+</connectionStrings>
+<appSettings>
+  <add key="serilog:minimum-level" value="Information" />
+  <add key="serilog:using:RavenDB" value="Serilog.Sinks.RavenDB" />
+  <add key="serilog:write-to:RavenDB.connectionStringName" value="Logs" />
+  <add key="serilog:write-to:RavenDB.defaultDatabase" value="[DEFAULT_DATABASE]" />
+</appSettings>
+```
+
 ### Automatic Log Record Expiration
 
 If you install the RavenDB expiration bundle on the database where log records are stored, you can configure the
