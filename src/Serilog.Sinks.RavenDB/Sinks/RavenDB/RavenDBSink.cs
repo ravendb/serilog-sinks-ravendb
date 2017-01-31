@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Raven.Client;
+using Raven.Client.Document;
 using Serilog.Sinks.PeriodicBatching;
 using LogEvent = Serilog.Sinks.RavenDB.Data.LogEvent;
 using Raven.Json.Linq;
@@ -34,6 +35,7 @@ namespace Serilog.Sinks.RavenDB
         readonly string _defaultDatabase;
         readonly TimeSpan? _expiration;
         private readonly TimeSpan? _errorExpiration;
+        private readonly bool _disposeDocumentStore;
 
         /// <summary>
         /// A reasonable default for the number of events posted in
@@ -64,13 +66,39 @@ namespace Serilog.Sinks.RavenDB
         public RavenDBSink(IDocumentStore documentStore, int batchPostingLimit, TimeSpan period, IFormatProvider formatProvider, string defaultDatabase = null, TimeSpan? expiration = null, TimeSpan? errorExpiration = null)
             : base(batchPostingLimit, period)
         {
-            if (documentStore == null) throw new ArgumentNullException("documentStore");
+            if (documentStore == null) throw new ArgumentNullException(nameof(documentStore));
             _formatProvider = formatProvider;
             _documentStore = documentStore;
             _defaultDatabase = defaultDatabase;
             _expiration = expiration;
             _errorExpiration = errorExpiration ?? expiration;
             _expiration = expiration ?? errorExpiration;
+            _disposeDocumentStore = false;
+        }
+
+        /// <summary>
+        /// Construct a sink posting to the specified database. Creates a document store using the specified connection string name.
+        /// </summary>
+        /// <param name="connectionStringName">Connection string name to the RavenDB database</param>
+        /// <param name="batchPostingLimit">The maximum number of events to post in a single batch.</param>
+        /// <param name="period">The time to wait between checking for event batches.</param>
+        /// <param name="formatProvider">Supplies culture-specific formatting information, or null.</param>
+        /// <param name="defaultDatabase">Optional name of default database</param>
+        /// <param name="expiration">Optional time before a logged message will be expired assuming the expiration bundle is installed. <see cref="System.Threading.Timeout.InfiniteTimeSpan">Timeout.InfiniteTimeSpan</see> (-00:00:00.0010000) means no expiration. If this is not provided but errorExpiration is, errorExpiration will be used for non-errors too.</param>
+        /// <param name="errorExpiration">Optional time before a logged error message will be expired assuming the expiration bundle is installed. <see cref="System.Threading.Timeout.InfiniteTimeSpan">Timeout.InfiniteTimeSpan</see> (-00:00:00.0010000) means no expiration. If this is not provided but expiration is, expiration will be used for errors too.</param>
+        /// <param name="documentStoreFactory"></param>
+        public RavenDBSink(string connectionStringName, int batchPostingLimit, TimeSpan period, IFormatProvider formatProvider, string defaultDatabase = null, TimeSpan? expiration = null, TimeSpan? errorExpiration = null, Func<string, IDocumentStore> documentStoreFactory = null )
+            : base(batchPostingLimit, period)
+        {
+            _documentStore = documentStoreFactory != null
+                ? documentStoreFactory(connectionStringName)
+                : new DocumentStore { ConnectionStringName = connectionStringName }.Initialize();
+            _formatProvider = formatProvider;
+            _defaultDatabase = defaultDatabase;
+            _expiration = expiration;
+            _errorExpiration = errorExpiration ?? expiration;
+            _expiration = expiration ?? errorExpiration;
+            _disposeDocumentStore = true;
         }
 
         /// <summary>
@@ -110,6 +138,16 @@ namespace Serilog.Sinks.RavenDB
                     }
                 }
                 await session.SaveChangesAsync();
+            }
+        }
+
+        /// <inheritdoc />
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if (disposing && _disposeDocumentStore)
+            {
+                _documentStore.Dispose();
             }
         }
     }

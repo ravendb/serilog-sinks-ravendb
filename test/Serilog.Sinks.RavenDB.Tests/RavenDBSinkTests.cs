@@ -283,5 +283,35 @@ namespace Serilog.Sinks.RavenDB.Tests
                 }
             }
         }
+
+        [Test]
+        public void WhenUsingConnectionStringInCtorInternalDocumentStoreIsCreated()
+        {
+            var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+            var exception = new ArgumentException("Mládek");
+            const LogEventLevel level = LogEventLevel.Information;
+            const string messageTemplate = "{Song}++";
+            var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
+            var documentStoreTestListener = new DocumentStoreTestListener();
+
+            using (var ravenSink = new RavenDBSink("testConnectionRavenDb", 2, TinyWait, null,
+                    documentStoreFactory:
+                    s => new EmbeddableDocumentStore { ConnectionStringName = s, RunInMemory = true }.RegisterListener(documentStoreTestListener).Initialize()))
+            {
+                var template = new MessageTemplateParser().Parse(messageTemplate);
+                var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
+                ravenSink.Emit(logEvent);
+            }
+
+            Assert.AreEqual(1, documentStoreTestListener.Events.Count);
+            var single = documentStoreTestListener.Events.First().Value;
+            Assert.AreEqual(messageTemplate, single.MessageTemplate);
+            Assert.AreEqual("\"New Macabre\"++", single.RenderedMessage);
+            Assert.AreEqual(timestamp, single.Timestamp);
+            Assert.AreEqual(level, single.Level);
+            Assert.AreEqual(1, single.Properties.Count);
+            Assert.AreEqual("New Macabre", single.Properties["Song"]);
+            Assert.AreEqual(exception.Message, single.Exception.Message);
+        }
     }
 }
