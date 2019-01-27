@@ -107,7 +107,6 @@
     <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DocumentStoreTestListener.cs" />
     <Compile Include="RavenDBSinkTests.cs" />
     <Compile Include="RavenPropertyFormatterTests.cs" />
   </ItemGroup>
