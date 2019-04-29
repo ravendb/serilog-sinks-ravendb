@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using NUnit.Framework;
+using Raven.Client.Documents;
 using Serilog.Events;
 using Serilog.Parsing;
 using LogEvent = Serilog.Sinks.RavenDB.Data.LogEvent;
@@ -14,7 +15,7 @@ namespace Serilog.Sinks.RavenDB.Tests
     {
         static readonly TimeSpan TinyWait = TimeSpan.FromMilliseconds(50);
 
-        [SetUp]
+        [OneTimeSetUp]
         public void Setup()
         {
             Raven.Embedded.EmbeddedServer.Instance.StartServer();
@@ -23,11 +24,11 @@ namespace Serilog.Sinks.RavenDB.Tests
         [Test]
         public void WhenAnEventIsWrittenToTheSinkItIsRetrievableFromTheDocumentStore()
         {
-            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenErrorExpirationSetToInfiniteErrorsDontExpire)))
+            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenAnEventIsWrittenToTheSinkItIsRetrievableFromTheDocumentStore)))
             {
                 documentStore.Initialize();
-
-                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                
+                var timestamp = new DateTimeOffset(DateTime.UtcNow, TimeSpan.FromHours(0));
                 var exception = new ArgumentException("Mládek");
                 const LogEventLevel level = LogEventLevel.Information;
                 const string messageTemplate = "{Song}++";
@@ -43,8 +44,9 @@ namespace Serilog.Sinks.RavenDB.Tests
                 using (var session = documentStore.OpenSession())
                 {
                     var events = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).ToList();
-                    Assert.AreEqual(1, events.Count);
-                    var single = events.Single();
+                    Assert.GreaterOrEqual(events.Count, 1);
+
+                    var single = events.First(f => f.Timestamp == timestamp);
                     Assert.AreEqual(messageTemplate, single.MessageTemplate);
                     Assert.AreEqual("\"New Macabre\"++", single.RenderedMessage);
                     Assert.AreEqual(timestamp, single.Timestamp);
@@ -63,7 +65,7 @@ namespace Serilog.Sinks.RavenDB.Tests
             {
                 documentStore.Initialize();
 
-                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var timestamp = new DateTimeOffset(DateTime.UtcNow, TimeSpan.FromHours(0));
                 var expiration = TimeSpan.FromDays(1);
                 var errorExpiration = TimeSpan.FromMinutes(15);
                 var targetExpiration = DateTime.UtcNow.Add(expiration);
@@ -81,7 +83,7 @@ namespace Serilog.Sinks.RavenDB.Tests
 
                 using (var session = documentStore.OpenSession())
                 { 
-                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).OrderByDescending(e => e.Timestamp).First();
                     var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
                     var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
                     Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
@@ -96,7 +98,7 @@ namespace Serilog.Sinks.RavenDB.Tests
             {
                 documentStore.Initialize();
 
-                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var timestamp = new DateTimeOffset(DateTime.UtcNow, TimeSpan.FromHours(0));
                 var errorExpiration = TimeSpan.FromDays(1);
                 var expiration = TimeSpan.FromMinutes(15);
                 var targetExpiration = DateTime.UtcNow.Add(errorExpiration);
@@ -114,7 +116,7 @@ namespace Serilog.Sinks.RavenDB.Tests
 
                 using (var session = documentStore.OpenSession())
                 {
-                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).OrderByDescending(e => e.Timestamp).First();
                     var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
                     var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
                     Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
@@ -129,7 +131,7 @@ namespace Serilog.Sinks.RavenDB.Tests
             {
                 documentStore.Initialize();
 
-                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var timestamp = new DateTimeOffset(DateTime.UtcNow, TimeSpan.FromHours(0));
                 var errorExpiration = TimeSpan.FromDays(1);
                 var expiration = TimeSpan.FromMinutes(15);
                 var targetExpiration = DateTime.UtcNow.Add(errorExpiration);
@@ -147,7 +149,7 @@ namespace Serilog.Sinks.RavenDB.Tests
 
                 using (var session = documentStore.OpenSession())
                 {
-                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).OrderByDescending(e => e.Timestamp).First();
                     var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
                     var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
                     Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
@@ -162,7 +164,7 @@ namespace Serilog.Sinks.RavenDB.Tests
             {
                 documentStore.Initialize();
 
-                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var timestamp = new DateTimeOffset(DateTime.UtcNow, TimeSpan.FromHours(0));
                 var expiration = TimeSpan.FromMinutes(15);
                 var targetExpiration = DateTime.UtcNow.Add(expiration);
                 var exception = new ArgumentException("Mládek");
@@ -179,7 +181,7 @@ namespace Serilog.Sinks.RavenDB.Tests
 
                 using (var session = documentStore.OpenSession())
                 {
-                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).OrderByDescending(e => e.Timestamp).First();
                     var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
                     var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
                     Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
@@ -194,7 +196,7 @@ namespace Serilog.Sinks.RavenDB.Tests
             {
                 documentStore.Initialize();
 
-                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var timestamp = new DateTimeOffset(DateTime.UtcNow, TimeSpan.FromHours(0));
                 var errorExpiration = TimeSpan.FromMinutes(15);
                 var targetExpiration = DateTime.UtcNow.Add(errorExpiration);
                 var exception = new ArgumentException("Mládek");
@@ -211,7 +213,7 @@ namespace Serilog.Sinks.RavenDB.Tests
 
                 using (var session = documentStore.OpenSession())
                 {
-                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).OrderByDescending(e => e.Timestamp).First();
                     var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
                     var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
                     Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
@@ -225,7 +227,7 @@ namespace Serilog.Sinks.RavenDB.Tests
             using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenErrorExpirationSetToInfiniteErrorsDontExpire)))
             {
                 documentStore.Initialize();
-                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var timestamp = new DateTimeOffset(DateTime.UtcNow, TimeSpan.FromHours(0));
                 var exception = new ArgumentException("Mládek");
                 const LogEventLevel level = LogEventLevel.Error;
                 const string messageTemplate = "{Song}++";
@@ -240,7 +242,7 @@ namespace Serilog.Sinks.RavenDB.Tests
 
                 using (var session = documentStore.OpenSession())
                 {
-                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).OrderByDescending(e => e.Timestamp).First();
                     Assert.IsFalse(session.Advanced.GetMetadataFor(logEvent).ContainsKey(RavenDBSink.RavenExpirationDate), "No expiration set");
                 }
             }
@@ -253,7 +255,7 @@ namespace Serilog.Sinks.RavenDB.Tests
             {
                 documentStore.Initialize();
 
-                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var timestamp = new DateTimeOffset(DateTime.UtcNow, TimeSpan.FromHours(0));
                 var expiration = Timeout.InfiniteTimeSpan;
                 var targetExpiration = DateTime.UtcNow.Add(expiration);
                 var exception = new ArgumentException("Mládek");
@@ -270,7 +272,9 @@ namespace Serilog.Sinks.RavenDB.Tests
 
                 using (var session = documentStore.OpenSession())
                 {
-                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var events = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).As<LogEvent>().ToList();
+
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).OrderByDescending(e => e.Timestamp).First();
                     Assert.IsFalse(session.Advanced.GetMetadataFor(logEvent).ContainsKey(RavenDBSink.RavenExpirationDate), "No expiration set");
                 }
             }
@@ -283,7 +287,7 @@ namespace Serilog.Sinks.RavenDB.Tests
             {
                 documentStore.Initialize();
 
-                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var timestamp = new DateTimeOffset(DateTime.UtcNow, TimeSpan.FromHours(0));
                 var errorExpiration = Timeout.InfiniteTimeSpan;
                 var targetExpiration = DateTime.UtcNow.Add(errorExpiration);
                 var exception = new ArgumentException("Mládek");
@@ -300,7 +304,7 @@ namespace Serilog.Sinks.RavenDB.Tests
 
                 using (var session = documentStore.OpenSession())
                 {
-                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).OrderByDescending(e => e.Timestamp).First();
                     Assert.IsFalse(session.Advanced.GetMetadataFor(logEvent).ContainsKey(RavenDBSink.RavenExpirationDate), "No expiration set");
                 }
             }
@@ -309,7 +313,7 @@ namespace Serilog.Sinks.RavenDB.Tests
         [Test]
         public void WhenUsingConnectionStringInCtorInternalDocumentStoreIsCreated()
         {
-            var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+            var timestamp = new DateTimeOffset(DateTime.UtcNow, TimeSpan.FromHours(0));
             var exception = new ArgumentException("Mládek");
             const LogEventLevel level = LogEventLevel.Information;
             const string messageTemplate = "{Song}++";
@@ -329,7 +333,7 @@ namespace Serilog.Sinks.RavenDB.Tests
                 }
 
                 Assert.AreEqual(1, events.Count);
-                var single = events.First().Value;
+                var single = events.Values.OrderByDescending(e => e.Timestamp).First();
                 Assert.AreEqual(messageTemplate, single.MessageTemplate);
                 Assert.AreEqual("\"New Macabre\"++", single.RenderedMessage);
                 Assert.AreEqual(timestamp, single.Timestamp);

@@ -45,7 +45,7 @@ namespace Serilog.Sinks.RavenDB
         /// <summary>
         /// Constant for the name of the meta data field used for RavenDB expiration bundle
         /// </summary>
-        public const string RavenExpirationDate = "Raven-Expiration-Date";
+        public const string RavenExpirationDate = Raven.Client.Constants.Documents.Metadata.Expires;
 
         /// <summary>
         /// A reasonable default time to wait between checking for event batches.
