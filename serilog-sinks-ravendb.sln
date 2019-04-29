@@ -1,11 +1,18 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28729.10
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serilog.Sinks.RavenDB", "src\Serilog.Sinks.RavenDB\Serilog.Sinks.RavenDB.csproj", "{EEDEA9EA-7742-4EDF-A848-B6199D1030F7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serilog.Sinks.RavenDB", "src\Serilog.Sinks.RavenDB\Serilog.Sinks.RavenDB.csproj", "{EEDEA9EA-7742-4EDF-A848-B6199D1030F7}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serilog.Sinks.RavenDB.Tests", "test\Serilog.Sinks.RavenDB.Tests\Serilog.Sinks.RavenDB.Tests.csproj", "{CE37740B-0B12-4974-BE44-A64E85C9ED9D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "assets", "assets", "{17A13089-A67A-4A87-A7DC-0CE1EDABA2D1}"
+	ProjectSection(SolutionItems) = preProject
+		appveyor.yml = appveyor.yml
+		Build.ps1 = Build.ps1
+		build.sh = build.sh
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,5 +31,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B3085107-AFBB-4978-A22D-8BA8D6EAFABC}
 	EndGlobalSection
 EndGlobal
