@@ -24,7 +24,7 @@ function Invoke-MSBuild($solution, $customLogger)
 {
     if ($customLogger)
     {
-        dotnet build "$solution" --verbosity minimal --configuration Release --logger:"$customLogger"
+        dotnet build "$solution" --verbosity minimal --configuration Release -logger:"$customLogger"
     }
     else
     {
