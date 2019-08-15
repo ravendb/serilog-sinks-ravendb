@@ -7,7 +7,7 @@
     <description>Serilog event sink that writes to a RavenDB database.</description>
     <language>en-US</language>
     <projectUrl>http://serilog.net</projectUrl>
-    <licenseUrl>http://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
+    <license type="expression">Apache-2.0</license>
     <iconUrl>http://serilog.net/images/serilog-sink-nuget.png</iconUrl>
     <tags>serilog logging ravendb</tags>
     <dependencies>
@@ -16,4 +16,7 @@
       <dependency id="Serilog.Sinks.PeriodicBatching" version="2.2.0" />
     </dependencies>
   </metadata>
+  <files>
+    <file src="bin/*/netstandard2.0/Serilog.Sinks.RavenDB.dll" target="lib/netstandard2.0" />
+  </files>
 </package>
