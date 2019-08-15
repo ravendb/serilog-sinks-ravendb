@@ -12,8 +12,8 @@
     <tags>serilog logging ravendb</tags>
     <dependencies>
       <dependency id="Serilog" version="2.0.0" />
-      <dependency id="RavenDB.Client" version="3.0.30000" />
-      <dependency id="Serilog.Sinks.PeriodicBatching" version="2.0.0" />
+      <dependency id="RavenDB.Client" version="4.2.2" />
+      <dependency id="Serilog.Sinks.PeriodicBatching" version="2.2.0" />
     </dependencies>
   </metadata>
 </package>

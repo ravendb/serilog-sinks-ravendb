@@ -1,11 +1,11 @@
 ﻿// Copyright 2014 Serilog Contributors
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -26,13 +26,13 @@ namespace Serilog.Sinks.RavenDB
     /// </summary>
     public static class RavenPropertyFormatter
     {
-        static readonly HashSet<Type> RavenSpecialScalars = new HashSet<Type>
+        private static readonly HashSet<Type> RavenSpecialScalars = new HashSet<Type>
         {
             typeof(bool),
             typeof(byte), typeof(short), typeof(ushort), typeof(int), typeof(uint),
                 typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal),
             typeof(byte[])
-        }; 
+        };
 
         /// <summary>
         /// Simplify the object so as to make handling the serialized
@@ -63,7 +63,7 @@ namespace Serilog.Sinks.RavenDB
                         })
                         .ToArray();
                     }
-                    
+
                     result.Add(key, Simplify(element.Value));
                 }
                 return result;
@@ -84,8 +84,8 @@ namespace Serilog.Sinks.RavenDB
 
             return null;
         }
-        
-        static object SimplifyScalar(object value)
+
+        private static object SimplifyScalar(object value)
         {
             if (value == null) return null;
 
