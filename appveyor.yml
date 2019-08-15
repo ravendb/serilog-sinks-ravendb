@@ -1,6 +1,4 @@
 image: Visual Studio 2019
 
-configuration: Release
-
 build_script:
-  ps: ./Build.ps1
+  ps: ./Build.ps1 -majorMinor "2.0" -patch "$env:APPVEYOR_BUILD_VERSION" -customLogger "C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"

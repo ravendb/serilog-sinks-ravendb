@@ -24,9 +24,7 @@ function Invoke-MSBuild($solution, $customLogger)
 {
     if ($customLogger)
     {
-        # temporary fix for dotnet core logger
-        # reference https://help.appveyor.com/discussions/problems/15688-appveyormsbuildloggerdll-for-dotnet-core
-        dotnet build "$solution" --verbosity minimal --configuration Release -logger:"C:\Program Files\AppVeyor\BuildAgent\dotnetcore\Appveyor.MSBuildLogger.dll"
+        dotnet build "$solution" --verbosity minimal --configuration Release -logger:$customLogger
     }
     else
     {
