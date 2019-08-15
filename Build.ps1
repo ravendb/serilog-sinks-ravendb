@@ -17,24 +17,24 @@ function Set-AssemblyVersions($informational, $assembly)
 
 function Install-NuGetPackages($solution)
 {
-    nuget restore $solution
+    dotnet restore $solution
 }
 
 function Invoke-MSBuild($solution, $customLogger)
 {
     if ($customLogger)
     {
-        msbuild "$solution" /verbosity:minimal /p:Configuration=Release /logger:"$customLogger"
+        dotnet build "$solution" --verbosity minimal --configuration Release --logger:"$customLogger"
     }
     else
     {
-        msbuild "$solution" /verbosity:minimal /p:Configuration=Release
+        dotnet build "$solution" --verbosity minimal --configuration Release
     }
 }
 
 function Invoke-NuGetPackProj($csproj)
 {
-    nuget pack -Prop Configuration=Release -Symbols $csproj
+    nuget pack $csproj -Prop Configuration=Release -Symbols 
 }
 
 function Invoke-NuGetPackSpec($nuspec, $version)
@@ -44,7 +44,7 @@ function Invoke-NuGetPackSpec($nuspec, $version)
 
 function Invoke-NuGetPack($version)
 {
-    ls src/**/*.csproj |
+    Get-ChildItem src/**/*.csproj |
         Where-Object { -not ($_.Name -like "*net40*") } |
         ForEach-Object { Invoke-NuGetPackProj $_ }
 }
@@ -75,9 +75,9 @@ $ErrorActionPreference = "Stop"
 
 if (-not $sln)
 {
-    $slnfull = ls *.sln |
+    $slnfull = Get-ChildItem *.sln |
         Where-Object { -not ($_.Name -like "*net40*") } |
-        Select -first 1
+        Select-Object -first 1
 
     $sln = $slnfull.BaseName
 }
