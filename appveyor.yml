@@ -10,9 +10,9 @@ artifacts:
 
 deploy:
   provider: NuGet
-  server: https://www.nuget.org/
+  server: https://api.nuget.org/v3/index.json
   api_key:
     secure: rRjkOlzuS1YV1Zz1m0twYOFL3p5TvjGKx02l2EdVL9twFUiD76tTI7Kjs/l3aK2f
   skip_symbols: false
-  symbol_server: https://symbols.nuget.org/
+  symbol_server: https://api.nuget.org/v3/index.json
   artifact: /.*\.nupkg/
