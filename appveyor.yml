@@ -7,3 +7,12 @@ build_script:
 
 artifacts:
   path: '**\*.nupkg'
+
+deploy:
+  provider: NuGet
+  server: https://www.nuget.org/
+  api_key:
+    secure: rRjkOlzuS1YV1Zz1m0twYOFL3p5TvjGKx02l2EdVL9twFUiD76tTI7Kjs/l3aK2f
+  skip_symbols: false
+  symbol_server: https://symbols.nuget.org/
+  artifact: /.*\.nupkg/
