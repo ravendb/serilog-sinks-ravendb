@@ -3,16 +3,14 @@ version: '{build}'
 image: Visual Studio 2019
 
 build_script:
-  ps: ./Build.ps1 -majorMinor "2.0" -patch "$env:APPVEYOR_BUILD_VERSION" -customLogger "C:\Program Files\AppVeyor\BuildAgent\dotnetcore\Appveyor.MSBuildLogger.dll"
+  - ps: ./Build.ps1 -majorMinor "2.0" -patch "$env:APPVEYOR_BUILD_VERSION" -customLogger "C:\Program Files\AppVeyor\BuildAgent\dotnetcore\Appveyor.MSBuildLogger.dll"
 
 artifacts:
-  path: '**\*.nupkg'
+  - path: '**\*.nupkg'
 
 deploy:
-  provider: NuGet
-  server: https://api.nuget.org/v3/index.json
-  api_key:
-    secure: rRjkOlzuS1YV1Zz1m0twYOFL3p5TvjGKx02l2EdVL9twFUiD76tTI7Kjs/l3aK2f
-  skip_symbols: false
-  symbol_server: https://api.nuget.org/v3/index.json
-  artifact: /.*\.nupkg/
+  - provider: NuGet
+    api_key:
+      secure: rRjkOlzuS1YV1Zz1m0twYOFL3p5TvjGKx02l2EdVL9twFUiD76tTI7Kjs/l3aK2f
+    skip_symbols: false
+    artifact: /.*\.nupkg/
