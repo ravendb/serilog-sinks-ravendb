@@ -4,3 +4,6 @@ image: Visual Studio 2019
 
 build_script:
   ps: ./Build.ps1 -majorMinor "2.0" -patch "$env:APPVEYOR_BUILD_VERSION" -customLogger "C:\Program Files\AppVeyor\BuildAgent\dotnetcore\Appveyor.MSBuildLogger.dll"
+
+artifacts:
+  path: '**\*.nupkg'

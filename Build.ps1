@@ -42,6 +42,11 @@ function Invoke-NuGetPackSpec($nuspec, $version)
     nuget pack $nuspec -Version $version -OutputDirectory ..\..\
 }
 
+function Invoke-Tests($slnFile)
+{
+    dotnet test $slnFile
+}
+
 function Invoke-NuGetPack($version)
 {
     Get-ChildItem src/**/*.csproj |
@@ -67,6 +72,8 @@ function Invoke-Build($majorMinor, $patch, $customLogger, $notouch, $sln)
     Install-NuGetPackages $slnfile
     
     Invoke-MSBuild $slnfile $customLogger
+
+    Invoke-Tests $slnFile
 
     Invoke-NuGetPack $package
 }
