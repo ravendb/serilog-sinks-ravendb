@@ -34,6 +34,7 @@ namespace Serilog.Sinks.RavenDB
         private readonly string _defaultDatabase;
         private readonly TimeSpan? _expiration;
         private readonly TimeSpan? _errorExpiration;
+        private readonly Func<global::Serilog.Events.LogEvent, TimeSpan> _logExpirationCallback;
         private readonly bool _disposeDocumentStore;
 
         /// <summary>
@@ -57,7 +58,8 @@ namespace Serilog.Sinks.RavenDB
         /// <param name="defaultDatabase">Optional name of default database</param>
         /// <param name="expiration">Optional time before a logged message will be expired assuming the expiration bundle is installed. <see cref="System.Threading.Timeout.InfiniteTimeSpan">Timeout.InfiniteTimeSpan</see> (-00:00:00.0010000) means no expiration. If this is not provided but errorExpiration is, errorExpiration will be used for non-errors too.</param>
         /// <param name="errorExpiration">Optional time before a logged error message will be expired assuming the expiration bundle is installed. <see cref="System.Threading.Timeout.InfiniteTimeSpan">Timeout.InfiniteTimeSpan</see> (-00:00:00.0010000) means no expiration. If this is not provided but expiration is, expiration will be used for errors too.</param>
-        public RavenDBSink(IDocumentStore documentStore, int batchPostingLimit, TimeSpan period, IFormatProvider formatProvider, string defaultDatabase = null, TimeSpan? expiration = null, TimeSpan? errorExpiration = null)
+        /// <param name="logExpirationCallback">Optional callback to dynamically determine log expiration based on event properties.  <see cref="System.Threading.Timeout.InfiniteTimeSpan">Timeout.InfiniteTimeSpan</see> (-00:00:00.0010000) means no expiration. If this is provided, it will be used instead of expiration or errorExpiration.</param>
+        public RavenDBSink(IDocumentStore documentStore, int batchPostingLimit, TimeSpan period, IFormatProvider formatProvider, string defaultDatabase = null, TimeSpan? expiration = null, TimeSpan? errorExpiration = null, Func<global::Serilog.Events.LogEvent, TimeSpan> logExpirationCallback = null)
             : base(batchPostingLimit, period)
         {
             if (documentStore == null) throw new ArgumentNullException(nameof(documentStore));
@@ -67,6 +69,7 @@ namespace Serilog.Sinks.RavenDB
             _expiration = expiration;
             _errorExpiration = errorExpiration ?? expiration;
             _expiration = expiration ?? errorExpiration;
+            _logExpirationCallback = logExpirationCallback; 
             _disposeDocumentStore = false;
         }
 
@@ -84,24 +87,17 @@ namespace Serilog.Sinks.RavenDB
                 {
                     var logEventDoc = new LogEvent(logEvent, logEvent.RenderMessage(_formatProvider));
                     await session.StoreAsync(logEventDoc);
-                    if (_expiration != null)
+
+                    var expiration =
+                        _logExpirationCallback != null ? _logExpirationCallback(logEvent) :
+                        _expiration == null ? Timeout.InfiniteTimeSpan :
+                        logEvent.Level == LogEventLevel.Error || logEvent.Level == LogEventLevel.Fatal ? _errorExpiration.Value :
+                        _expiration.Value;
+
+                    if (expiration != Timeout.InfiniteTimeSpan)
                     {
-                        if (logEvent.Level == LogEventLevel.Error || logEvent.Level == LogEventLevel.Fatal)
-                        {
-                            if (_errorExpiration != Timeout.InfiniteTimeSpan)
-                            {
-                                var metaData = session.Advanced.GetMetadataFor(logEventDoc);
-                                metaData[Constants.Documents.Metadata.Expires] = DateTime.UtcNow.Add(_errorExpiration.Value);
-                            }
-                        }
-                        else
-                        {
-                            if (_expiration != Timeout.InfiniteTimeSpan)
-                            {
-                                var metaData = session.Advanced.GetMetadataFor(logEventDoc);
-                                metaData[Constants.Documents.Metadata.Expires] = DateTime.UtcNow.Add(_expiration.Value);
-                            }
-                        }
+                        var metaData = session.Advanced.GetMetadataFor(logEventDoc);
+                        metaData[Constants.Documents.Metadata.Expires] = DateTime.UtcNow.Add(expiration);
                     }
                 }
                 await session.SaveChangesAsync();
