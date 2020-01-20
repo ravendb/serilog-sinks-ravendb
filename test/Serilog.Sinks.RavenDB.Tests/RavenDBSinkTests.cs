@@ -96,6 +96,43 @@ namespace Serilog.Sinks.RavenDB.Tests
         }
 
         [Fact]
+        public void WhenAnEventIsWrittenWithExpirationCallbackItHasProperMetadata()
+        {
+            const string databaseName = nameof(WhenAnErrorEventIsWrittenWithExpirationItHasProperMetadata);
+            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(databaseName))
+            {
+                documentStore.Initialize();
+
+                var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
+                var expiration = TimeSpan.FromDays(1);
+                var errorExpiration = TimeSpan.FromMinutes(15);
+                var targetExpiration = DateTime.UtcNow.Add(expiration);
+                TimeSpan func(Events.LogEvent le) => le.Level == LogEventLevel.Information ? expiration : errorExpiration;
+                var exception = new ArgumentException("Ml�dek");
+                const LogEventLevel level = LogEventLevel.Information;
+                const string messageTemplate = "{Song}++";
+                var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
+
+                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, logExpirationCallback: func))
+                {
+                    var template = new MessageTemplateParser().Parse(messageTemplate);
+                    var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
+                    ravenSink.Emit(logEvent);
+                }
+
+                using (var session = documentStore.OpenSession())
+                {
+                    var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
+                    var metaData = session.Advanced.GetMetadataFor(logEvent)[Constants.Documents.Metadata.Expires].ToString();
+                    var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
+                    Assert.True(actualExpiration >= targetExpiration, $"The document should expire on or after {targetExpiration} but expires {actualExpiration}");
+                }
+
+                documentStore.Maintenance.Server.Send(new DeleteDatabasesOperation(databaseName, hardDelete: true, fromNode: null, timeToWaitForConfirmation: null));
+            }
+        }
+
+        [Fact]
         public void WhenAnErrorEventIsWrittenWithExpirationItHasProperMetadata()
         {
             const string databaseName = nameof(WhenAnErrorEventIsWrittenWithExpirationItHasProperMetadata);
