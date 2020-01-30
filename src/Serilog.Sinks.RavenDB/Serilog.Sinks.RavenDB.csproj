@@ -13,9 +13,10 @@
         <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
         <PackageId>Serilog.Sinks.RavenDB</PackageId>
         <PackageTags>serilog;ravendb;logging</PackageTags>
+        <PackageIcon>serilog-sink-nuget.png</PackageIcon>
         <PackageIconUrl>http://serilog.net/images/serilog-sink-nuget.png</PackageIconUrl>
         <PackageProjectUrl>http://serilog.net</PackageProjectUrl>
-        <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
+        <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/serilog/serilog-sinks-ravendb</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -31,6 +32,10 @@
         <PackageReference Include="Serilog.Sinks.PeriodicBatching" Version="2.2.0" />
         <PackageReference Include="Serilog" Version="2.5.0" />
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="../../assets/serilog-sink-nuget.png" Pack="true" PackagePath="\" />
     </ItemGroup>
 
 </Project>
