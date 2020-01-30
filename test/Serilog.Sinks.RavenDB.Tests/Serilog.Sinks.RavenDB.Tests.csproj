@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>netstandard2.0</TargetFrameworks>
+        <TargetFrameworks>netcoreapp2.2;net461</TargetFrameworks>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <AssemblyName>Serilog.Sinks.RavenDB.Tests</AssemblyName>
         <AssemblyOriginatorKeyFile>../../assets/Serilog.snk</AssemblyOriginatorKeyFile>
@@ -12,10 +12,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="nunit" Version="3.11.0" />
-        <PackageReference Include="NUnit3TestAdapter" Version="3.13.0" />
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
-        <PackageReference Include="RavenDB.Embedded" Version="4.2.2" />
+        <PackageReference Include="RavenDB.Embedded" Version="4.2.8" />
+
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.4.0" />
+        <PackageReference Include="xunit" Version="2.4.1" />
+        <!-- xunit.runner.visualstudio doesn't include a .net standard version, but this works anyway, so NoWarn -->
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1" NoWarn="NU1701" />
     </ItemGroup>
 
     <ItemGroup>
