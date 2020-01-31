@@ -38,6 +38,6 @@ Log.Logger = new LoggerConfiguration()
 ### Automatic Log Record Expiration
 
 If you install the RavenDB expiration bundle on the database where log records are stored, you can configure the
-sink to automatically delete log records by passing `errorExpiration` (for fatal and error messages) and
-`expiration` (for all other messages). If you pass one, you should pass both. `Timeout.InfiniteTimeSpan` indicates that
-messages of the appropriate type will never be deleted by the expiration bundle.
+sink to automatically delete log records. There are two ways to do this:
+* Simple version: passing `errorExpiration` (for fatal and error messages) and `expiration` (for all other messages). If you pass one, you should pass both. `Timeout.InfiniteTimeSpan` indicates that messages of the appropriate type will never be deleted by the expiration bundle.
+* Featured version: passing `logExpirationCallback`, a which will receive a Serilog `LogEvent` and return a `TimeSpan`. `Timeout.InfiniteTimeSpan` indicates that the message will never be deleted by the expiration bundle.
