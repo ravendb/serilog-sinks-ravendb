@@ -1,4 +1,4 @@
-﻿// Copyright 2014 Serilog Contributors
+﻿// Copyright 2020 Serilog Contributors
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ using System.Threading.Tasks;
 using Serilog.Sinks.PeriodicBatching;
 using LogEvent = Serilog.Sinks.RavenDB.Data.LogEvent;
 using Serilog.Events;
+using Raven.Client;
 using Raven.Client.Documents;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Serilog.Sinks.RavenDB
 {
@@ -28,11 +28,11 @@ namespace Serilog.Sinks.RavenDB
     /// Writes log events as documents to a RavenDB database.
     /// </summary>
     public class RavenDBSink : PeriodicBatchingSink
-    {   
-        readonly IFormatProvider _formatProvider;
-        readonly IDocumentStore _documentStore;
-        readonly string _defaultDatabase;
-        readonly TimeSpan? _expiration;
+    {
+        private readonly IFormatProvider _formatProvider;
+        private readonly IDocumentStore _documentStore;
+        private readonly string _defaultDatabase;
+        private readonly TimeSpan? _expiration;
         private readonly TimeSpan? _errorExpiration;
         private readonly bool _disposeDocumentStore;
 
@@ -41,11 +41,6 @@ namespace Serilog.Sinks.RavenDB
         /// each batch.
         /// </summary>
         public const int DefaultBatchPostingLimit = 50;
-
-        /// <summary>
-        /// Constant for the name of the meta data field used for RavenDB expiration bundle
-        /// </summary>
-        public const string RavenExpirationDate = "Raven-Expiration-Date";
 
         /// <summary>
         /// A reasonable default time to wait between checking for event batches.
@@ -96,7 +91,7 @@ namespace Serilog.Sinks.RavenDB
                             if (_errorExpiration != Timeout.InfiniteTimeSpan)
                             {
                                 var metaData = session.Advanced.GetMetadataFor(logEventDoc);
-                                metaData[RavenExpirationDate] = DateTime.UtcNow.Add(_errorExpiration.Value);
+                                metaData[Constants.Documents.Metadata.Expires] = DateTime.UtcNow.Add(_errorExpiration.Value);
                             }
                         }
                         else
@@ -104,7 +99,7 @@ namespace Serilog.Sinks.RavenDB
                             if (_expiration != Timeout.InfiniteTimeSpan)
                             {
                                 var metaData = session.Advanced.GetMetadataFor(logEventDoc);
-                                metaData[RavenExpirationDate] = DateTime.UtcNow.Add(_expiration.Value);
+                                metaData[Constants.Documents.Metadata.Expires] = DateTime.UtcNow.Add(_expiration.Value);
                             }
                         }
                     }

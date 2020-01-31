@@ -26,13 +26,13 @@ namespace Serilog.Sinks.RavenDB
     /// </summary>
     public static class RavenPropertyFormatter
     {
-        static readonly HashSet<Type> RavenSpecialScalars = new HashSet<Type>
+        private static readonly HashSet<Type> RavenSpecialScalars = new HashSet<Type>
         {
             typeof(bool),
             typeof(byte), typeof(short), typeof(ushort), typeof(int), typeof(uint),
-                typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal),
+            typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal),
             typeof(byte[])
-        }; 
+        };
 
         /// <summary>
         /// Simplify the object so as to make handling the serialized
@@ -63,7 +63,7 @@ namespace Serilog.Sinks.RavenDB
                         })
                         .ToArray();
                     }
-                    
+
                     result.Add(key, Simplify(element.Value));
                 }
                 return result;
@@ -84,8 +84,8 @@ namespace Serilog.Sinks.RavenDB
 
             return null;
         }
-        
-        static object SimplifyScalar(object value)
+
+        private static object SimplifyScalar(object value)
         {
             if (value == null) return null;
 

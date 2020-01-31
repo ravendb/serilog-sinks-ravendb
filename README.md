@@ -1,11 +1,11 @@
 # Serilog.Sinks.RavenDB
 
-[![Build status](https://ci.appveyor.com/api/projects/status/maf8tidwq1xbvrqh/branch/master?svg=true)](https://ci.appveyor.com/project/serilog/serilog-sinks-ravendb/branch/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/maf8tidwq1xbvrqh/branch/master?svg=true)](https://ci.appveyor.com/project/serilog/serilog-sinks-ravendb/branch/master) [![NuGet Version](http://img.shields.io/nuget/v/Serilog.Sinks.RavenDB.svg?style=flat)](https://www.nuget.org/packages/Serilog.Sinks.RavenDB/)
 
-A Serilog sink that writes events as documents to [RavenDB](http://ravendb.net).
+A [Serilog](https://serilog.net) sink that writes events as documents to [RavenDB](http://ravendb.net).
 
 **Package** - [Serilog.Sinks.RavenDB](http://nuget.org/packages/serilog.sinks.ravendb)
-| **Platforms** - .NET 4.5
+| **Platforms** - .NET Standard 2.0 (.NET 4.6.1 or later; .NET Core 2.0 or later)
 
 ```csharp
 var logs = new DocumentStore { ConnectionStringName = "Logs" }.Initialize();

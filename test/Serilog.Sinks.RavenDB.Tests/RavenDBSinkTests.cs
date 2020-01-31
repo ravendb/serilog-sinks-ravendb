@@ -2,28 +2,29 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using NUnit.Framework;
+using Raven.Client;
+using Raven.Client.ServerWide.Operations;
 using Serilog.Events;
 using Serilog.Parsing;
+using Xunit;
 using LogEvent = Serilog.Sinks.RavenDB.Data.LogEvent;
 
 namespace Serilog.Sinks.RavenDB.Tests
 {
-    [TestFixture]
     public class RavenDBSinkTests
     {
-        static readonly TimeSpan TinyWait = TimeSpan.FromMilliseconds(50);
+        private static readonly TimeSpan TinyWait = TimeSpan.FromMilliseconds(50);
 
-        [SetUp]
-        public void Setup()
+        static RavenDBSinkTests()
         {
             Raven.Embedded.EmbeddedServer.Instance.StartServer();
         }
-        
-        [Test]
+
+        [Fact]
         public void WhenAnEventIsWrittenToTheSinkItIsRetrievableFromTheDocumentStore()
         {
-            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenErrorExpirationSetToInfiniteErrorsDontExpire)))
+            const string databaseName = nameof(WhenAnEventIsWrittenToTheSinkItIsRetrievableFromTheDocumentStore);
+            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(databaseName))
             {
                 documentStore.Initialize();
 
@@ -43,23 +44,26 @@ namespace Serilog.Sinks.RavenDB.Tests
                 using (var session = documentStore.OpenSession())
                 {
                     var events = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).ToList();
-                    Assert.AreEqual(1, events.Count);
+                    Assert.Single(events);
                     var single = events.Single();
-                    Assert.AreEqual(messageTemplate, single.MessageTemplate);
-                    Assert.AreEqual("\"New Macabre\"++", single.RenderedMessage);
-                    Assert.AreEqual(timestamp, single.Timestamp);
-                    Assert.AreEqual(level, single.Level);
-                    Assert.AreEqual(1, single.Properties.Count);
-                    Assert.AreEqual("New Macabre", single.Properties["Song"]);
-                    Assert.AreEqual(exception.Message, single.Exception.Message);
+                    Assert.Equal(messageTemplate, single.MessageTemplate);
+                    Assert.Equal("\"New Macabre\"++", single.RenderedMessage);
+                    Assert.Equal(timestamp, single.Timestamp);
+                    Assert.Equal(level, single.Level);
+                    Assert.Equal(1, single.Properties.Count);
+                    Assert.Equal("New Macabre", single.Properties["Song"]);
+                    Assert.Equal(exception.Message, single.Exception.Message);
                 }
+
+                documentStore.Maintenance.Server.Send(new DeleteDatabasesOperation(databaseName, hardDelete: true, fromNode: null, timeToWaitForConfirmation: null));
             }
         }
 
-        [Test]
-        public void WnenAnEventIsWrittenWithExpirationItHasProperMetadata()
+        [Fact]
+        public void WhenAnEventIsWrittenWithExpirationItHasProperMetadata()
         {
-            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenErrorExpirationSetToInfiniteErrorsDontExpire)))
+            const string databaseName = nameof(WhenAnEventIsWrittenWithExpirationItHasProperMetadata);
+            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(databaseName))
             {
                 documentStore.Initialize();
 
@@ -72,7 +76,7 @@ namespace Serilog.Sinks.RavenDB.Tests
                 const string messageTemplate = "{Song}++";
                 var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
 
-                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, expiration:expiration, errorExpiration:errorExpiration))
+                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, expiration: expiration, errorExpiration: errorExpiration))
                 {
                     var template = new MessageTemplateParser().Parse(messageTemplate);
                     var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
@@ -80,19 +84,22 @@ namespace Serilog.Sinks.RavenDB.Tests
                 }
 
                 using (var session = documentStore.OpenSession())
-                { 
+                {
                     var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
-                    var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
+                    var metaData = session.Advanced.GetMetadataFor(logEvent)[Constants.Documents.Metadata.Expires].ToString();
                     var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
-                    Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
+                    Assert.True(actualExpiration >= targetExpiration, $"The document should expire on or after {targetExpiration} but expires {actualExpiration}");
                 }
+
+                documentStore.Maintenance.Server.Send(new DeleteDatabasesOperation(databaseName, hardDelete: true, fromNode: null, timeToWaitForConfirmation: null));
             }
         }
 
-        [Test]
-        public void WnenAnErrorEventIsWrittenWithExpirationItHasProperMetadata()
+        [Fact]
+        public void WhenAnErrorEventIsWrittenWithExpirationItHasProperMetadata()
         {
-            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenErrorExpirationSetToInfiniteErrorsDontExpire)))
+            const string databaseName = nameof(WhenAnErrorEventIsWrittenWithExpirationItHasProperMetadata);
+            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(databaseName))
             {
                 documentStore.Initialize();
 
@@ -105,7 +112,7 @@ namespace Serilog.Sinks.RavenDB.Tests
                 const string messageTemplate = "{Song}++";
                 var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
 
-                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, expiration: expiration, errorExpiration:errorExpiration))
+                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, expiration: expiration, errorExpiration: errorExpiration))
                 {
                     var template = new MessageTemplateParser().Parse(messageTemplate);
                     var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
@@ -115,17 +122,20 @@ namespace Serilog.Sinks.RavenDB.Tests
                 using (var session = documentStore.OpenSession())
                 {
                     var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
-                    var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
+                    var metaData = session.Advanced.GetMetadataFor(logEvent)[Constants.Documents.Metadata.Expires].ToString();
                     var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
-                    Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
+                    Assert.True(actualExpiration >= targetExpiration, $"The document should expire on or after {targetExpiration} but expires {actualExpiration}");
                 }
+
+                documentStore.Maintenance.Server.Send(new DeleteDatabasesOperation(databaseName, hardDelete: true, fromNode: null, timeToWaitForConfirmation: null));
             }
         }
 
-        [Test]
+        [Fact]
         public void WhenAFatalEventIsWrittenWithExpirationItHasProperMetadata()
         {
-            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenErrorExpirationSetToInfiniteErrorsDontExpire)))
+            const string databaseName = nameof(WhenAFatalEventIsWrittenWithExpirationItHasProperMetadata);
+            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(databaseName))
             {
                 documentStore.Initialize();
 
@@ -148,17 +158,20 @@ namespace Serilog.Sinks.RavenDB.Tests
                 using (var session = documentStore.OpenSession())
                 {
                     var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
-                    var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
+                    var metaData = session.Advanced.GetMetadataFor(logEvent)[Constants.Documents.Metadata.Expires].ToString();
                     var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
-                    Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
+                    Assert.True(actualExpiration >= targetExpiration, $"The document should expire on or after {targetExpiration} but expires {actualExpiration}");
                 }
+
+                documentStore.Maintenance.Server.Send(new DeleteDatabasesOperation(databaseName, hardDelete: true, fromNode: null, timeToWaitForConfirmation: null));
             }
         }
 
-        [Test]
+        [Fact]
         public void WhenNoErrorExpirationSetBuExpirationSetUseExpirationForErrors()
         {
-            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenErrorExpirationSetToInfiniteErrorsDontExpire)))
+            const string databaseName = nameof(WhenNoErrorExpirationSetBuExpirationSetUseExpirationForErrors);
+            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(databaseName))
             {
                 documentStore.Initialize();
 
@@ -180,17 +193,20 @@ namespace Serilog.Sinks.RavenDB.Tests
                 using (var session = documentStore.OpenSession())
                 {
                     var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
-                    var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
+                    var metaData = session.Advanced.GetMetadataFor(logEvent)[Constants.Documents.Metadata.Expires].ToString();
                     var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
-                    Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
+                    Assert.True(actualExpiration >= targetExpiration, $"The document should expire on or after {targetExpiration} but expires {actualExpiration}");
                 }
+
+                documentStore.Maintenance.Server.Send(new DeleteDatabasesOperation(databaseName, hardDelete: true, fromNode: null, timeToWaitForConfirmation: null));
             }
         }
 
-        [Test]
+        [Fact]
         public void WhenNoExpirationSetBuErrorExpirationSetUseErrorExpirationForMessages()
         {
-            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenErrorExpirationSetToInfiniteErrorsDontExpire)))
+            const string databaseName = nameof(WhenNoExpirationSetBuErrorExpirationSetUseErrorExpirationForMessages);
+            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(databaseName))
             {
                 documentStore.Initialize();
 
@@ -212,17 +228,20 @@ namespace Serilog.Sinks.RavenDB.Tests
                 using (var session = documentStore.OpenSession())
                 {
                     var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
-                    var metaData = session.Advanced.GetMetadataFor(logEvent)[RavenDBSink.RavenExpirationDate].ToString();
+                    var metaData = session.Advanced.GetMetadataFor(logEvent)[Constants.Documents.Metadata.Expires].ToString();
                     var actualExpiration = Convert.ToDateTime(metaData).ToUniversalTime();
-                    Assert.GreaterOrEqual(actualExpiration, targetExpiration, "The document should expire on or after {0} but expires {1}", targetExpiration, actualExpiration);
+                    Assert.True(actualExpiration >= targetExpiration, $"The document should expire on or after {targetExpiration} but expires {actualExpiration}");
                 }
+
+                documentStore.Maintenance.Server.Send(new DeleteDatabasesOperation(databaseName, hardDelete: true, fromNode: null, timeToWaitForConfirmation: null));
             }
         }
 
-        [Test]
+        [Fact]
         public void WhenNoExpirationIsProvidedMessagesDontExpire()
         {
-            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenErrorExpirationSetToInfiniteErrorsDontExpire)))
+            const string databaseName = nameof(WhenNoExpirationIsProvidedMessagesDontExpire);
+            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(databaseName))
             {
                 documentStore.Initialize();
                 var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
@@ -241,15 +260,18 @@ namespace Serilog.Sinks.RavenDB.Tests
                 using (var session = documentStore.OpenSession())
                 {
                     var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
-                    Assert.IsFalse(session.Advanced.GetMetadataFor(logEvent).ContainsKey(RavenDBSink.RavenExpirationDate), "No expiration set");
+                    Assert.False(session.Advanced.GetMetadataFor(logEvent).ContainsKey(Constants.Documents.Metadata.Expires), "No expiration set");
                 }
+
+                documentStore.Maintenance.Server.Send(new DeleteDatabasesOperation(databaseName, hardDelete: true, fromNode: null, timeToWaitForConfirmation: null));
             }
         }
 
-        [Test]
+        [Fact]
         public void WhenExpirationSetToInfiniteMessagesDontExpire()
         {
-            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenErrorExpirationSetToInfiniteErrorsDontExpire)))
+            const string databaseName = nameof(WhenExpirationSetToInfiniteMessagesDontExpire);
+            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(databaseName))
             {
                 documentStore.Initialize();
 
@@ -261,7 +283,7 @@ namespace Serilog.Sinks.RavenDB.Tests
                 const string messageTemplate = "{Song}++";
                 var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
 
-                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, expiration:expiration))
+                using (var ravenSink = new RavenDBSink(documentStore, 2, TinyWait, null, expiration: expiration))
                 {
                     var template = new MessageTemplateParser().Parse(messageTemplate);
                     var logEvent = new Events.LogEvent(timestamp, level, exception, template, properties);
@@ -271,15 +293,18 @@ namespace Serilog.Sinks.RavenDB.Tests
                 using (var session = documentStore.OpenSession())
                 {
                     var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
-                    Assert.IsFalse(session.Advanced.GetMetadataFor(logEvent).ContainsKey(RavenDBSink.RavenExpirationDate), "No expiration set");
+                    Assert.False(session.Advanced.GetMetadataFor(logEvent).ContainsKey(Constants.Documents.Metadata.Expires), "No expiration set");
                 }
+
+                documentStore.Maintenance.Server.Send(new DeleteDatabasesOperation(databaseName, hardDelete: true, fromNode: null, timeToWaitForConfirmation: null));
             }
         }
 
-        [Test]
+        [Fact]
         public void WhenErrorExpirationSetToInfiniteErrorsDontExpire()
         {
-            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenErrorExpirationSetToInfiniteErrorsDontExpire)))
+            const string databaseName = nameof(WhenErrorExpirationSetToInfiniteErrorsDontExpire);
+            using (var documentStore = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(databaseName))
             {
                 documentStore.Initialize();
 
@@ -287,7 +312,7 @@ namespace Serilog.Sinks.RavenDB.Tests
                 var errorExpiration = Timeout.InfiniteTimeSpan;
                 var targetExpiration = DateTime.UtcNow.Add(errorExpiration);
                 var exception = new ArgumentException("Mládek");
-                const LogEventLevel level = LogEventLevel.Information;
+                const LogEventLevel level = LogEventLevel.Error;
                 const string messageTemplate = "{Song}++";
                 var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
 
@@ -301,12 +326,14 @@ namespace Serilog.Sinks.RavenDB.Tests
                 using (var session = documentStore.OpenSession())
                 {
                     var logEvent = session.Query<LogEvent>().Customize(x => x.WaitForNonStaleResults()).First();
-                    Assert.IsFalse(session.Advanced.GetMetadataFor(logEvent).ContainsKey(RavenDBSink.RavenExpirationDate), "No expiration set");
+                    Assert.False(session.Advanced.GetMetadataFor(logEvent).ContainsKey(Constants.Documents.Metadata.Expires), "No expiration set");
                 }
+
+                documentStore.Maintenance.Server.Send(new DeleteDatabasesOperation(databaseName, hardDelete: true, fromNode: null, timeToWaitForConfirmation: null));
             }
         }
 
-        [Test]
+        [Fact]
         public void WhenUsingConnectionStringInCtorInternalDocumentStoreIsCreated()
         {
             var timestamp = new DateTimeOffset(2013, 05, 28, 22, 10, 20, 666, TimeSpan.FromHours(10));
@@ -316,7 +343,8 @@ namespace Serilog.Sinks.RavenDB.Tests
             var properties = new List<LogEventProperty> { new LogEventProperty("Song", new ScalarValue("New Macabre")) };
             var events = new Dictionary<string, LogEvent>();
 
-            using (var store = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(nameof(WhenUsingConnectionStringInCtorInternalDocumentStoreIsCreated)))
+            const string databaseName = nameof(WhenUsingConnectionStringInCtorInternalDocumentStoreIsCreated);
+            using (var store = Raven.Embedded.EmbeddedServer.Instance.GetDocumentStore(databaseName))
             {
                 store.OnBeforeStore += (sender, e) => events[e.DocumentId] = (LogEvent)e.Entity;
                 store.Initialize();
@@ -328,17 +356,18 @@ namespace Serilog.Sinks.RavenDB.Tests
                     ravenSink.Emit(logEvent);
                 }
 
-                Assert.AreEqual(1, events.Count);
+                Assert.Single(events);
                 var single = events.First().Value;
-                Assert.AreEqual(messageTemplate, single.MessageTemplate);
-                Assert.AreEqual("\"New Macabre\"++", single.RenderedMessage);
-                Assert.AreEqual(timestamp, single.Timestamp);
-                Assert.AreEqual(level, single.Level);
-                Assert.AreEqual(1, single.Properties.Count);
-                Assert.AreEqual("New Macabre", single.Properties["Song"]);
-                Assert.AreEqual(exception.Message, single.Exception.Message);
+                Assert.Equal(messageTemplate, single.MessageTemplate);
+                Assert.Equal("\"New Macabre\"++", single.RenderedMessage);
+                Assert.Equal(timestamp, single.Timestamp);
+                Assert.Equal(level, single.Level);
+                Assert.Equal(1, single.Properties.Count);
+                Assert.Equal("New Macabre", single.Properties["Song"]);
+                Assert.Equal(exception.Message, single.Exception.Message);
+
+                store.Maintenance.Server.Send(new DeleteDatabasesOperation(databaseName, hardDelete: true, fromNode: null, timeToWaitForConfirmation: null));
             }
         }
-
     }
 }
