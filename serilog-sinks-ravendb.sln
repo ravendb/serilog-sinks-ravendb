@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29209.62
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serilog.Sinks.RavenDB", "src\Serilog.Sinks.RavenDB\Serilog.Sinks.RavenDB.csproj", "{EEDEA9EA-7742-4EDF-A848-B6199D1030F7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Serilog.Sinks.RavenDB", "src\Serilog.Sinks.RavenDB\Serilog.Sinks.RavenDB.csproj", "{5C4D8400-D2F0-42B7-9F51-41CAD2825E07}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serilog.Sinks.RavenDB.Tests", "test\Serilog.Sinks.RavenDB.Tests\Serilog.Sinks.RavenDB.Tests.csproj", "{CE37740B-0B12-4974-BE44-A64E85C9ED9D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serilog.Sinks.RavenDB.Tests", "test\Serilog.Sinks.RavenDB.Tests\Serilog.Sinks.RavenDB.Tests.csproj", "{9B916599-5BD8-4649-BE14-4C4FAFEB07C8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,16 +13,19 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{EEDEA9EA-7742-4EDF-A848-B6199D1030F7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{EEDEA9EA-7742-4EDF-A848-B6199D1030F7}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{EEDEA9EA-7742-4EDF-A848-B6199D1030F7}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{EEDEA9EA-7742-4EDF-A848-B6199D1030F7}.Release|Any CPU.Build.0 = Release|Any CPU
-		{CE37740B-0B12-4974-BE44-A64E85C9ED9D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CE37740B-0B12-4974-BE44-A64E85C9ED9D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CE37740B-0B12-4974-BE44-A64E85C9ED9D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CE37740B-0B12-4974-BE44-A64E85C9ED9D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C4D8400-D2F0-42B7-9F51-41CAD2825E07}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C4D8400-D2F0-42B7-9F51-41CAD2825E07}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C4D8400-D2F0-42B7-9F51-41CAD2825E07}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C4D8400-D2F0-42B7-9F51-41CAD2825E07}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9B916599-5BD8-4649-BE14-4C4FAFEB07C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9B916599-5BD8-4649-BE14-4C4FAFEB07C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9B916599-5BD8-4649-BE14-4C4FAFEB07C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9B916599-5BD8-4649-BE14-4C4FAFEB07C8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E337C475-D46D-4898-8E5C-9E2ADA7D23D9}
 	EndGlobalSection
 EndGlobal
