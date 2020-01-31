@@ -12,5 +12,5 @@ done
 
 echo "🤖 Running tests..."
 for path in test/*.Tests/*.csproj; do
-    dotnet test -f netcoreapp2.0  -c Release ${path}
+    dotnet test -f netcoreapp2.2  -c Release ${path}
 done
