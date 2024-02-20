@@ -8,7 +8,12 @@ A [Serilog](https://serilog.net) sink that writes events as documents to [RavenD
 | **Platforms** - .NET Standard 2.0 (.NET 4.6.1 or later; .NET Core 2.0 or later)
 
 ```csharp
-var logs = new DocumentStore { ConnectionStringName = "Logs" }.Initialize();
+var logs = new DocumentStore 
+{ 
+    Urls = new[] { "SERVER_URL" }, 
+    Database = "DATABASE_NAME", 
+    Certificate = null, // or X509Certificate2
+}.Initialize();
 
 var log = new LoggerConfiguration()
     .WriteTo.RavenDB(logs)
@@ -24,14 +29,11 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 ```xml
-<connectionStrings>
-  <add name="Logs" connectionString="Url=http://[RAVEN_DB_SERVER]:8080/;DefaultDatabase=[OPTIONAL_DEFAULT_DATABASE]" />
-</connectionStrings>
 <appSettings>
   <add key="serilog:minimum-level" value="Information" />
   <add key="serilog:using:RavenDB" value="Serilog.Sinks.RavenDB" />
-  <add key="serilog:write-to:RavenDB.connectionStringName" value="Logs" />
-  <add key="serilog:write-to:RavenDB.defaultDatabase" value="[DEFAULT_DATABASE]" />
+  <add key="serilog:write-to:RavenDB.Urls" value="[SERVER_URL]" />
+  <add key="serilog:write-to:RavenDB.Database" value="[DATABASE_NAME]" />
 </appSettings>
 ```
 
